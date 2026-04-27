@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from phishhawk.attachment_models import AttachmentForensics
 from phishhawk.auth_models import AuthAnalysis
 from phishhawk.models import CategoryScore, HeaderInfo, ParsedEmail, RiskLevel, RiskScore
 from phishhawk.url_models import URLAnalysis
@@ -28,11 +29,12 @@ def score_email(
     parsed: ParsedEmail,
     auth: AuthAnalysis | None = None,
     urls: list[URLAnalysis] | None = None,
+    forensics: list[AttachmentForensics] | None = None,
 ) -> RiskScore:
     """Run all scoring modules and return aggregate risk."""
     categories: list[CategoryScore] = [
         score_authentication(parsed.headers, auth),
-        score_attachments(parsed.attachments),
+        score_attachments(parsed.attachments, forensics or []),
         score_headers(parsed.headers),
         score_urls(urls or []),
         CategoryScore(category="iocs", score=0, findings=["IOC extraction: Phase 5"]),
@@ -116,8 +118,11 @@ def score_authentication(headers: HeaderInfo, auth: AuthAnalysis | None = None) 
     )
 
 
-def score_attachments(attachments: list) -> CategoryScore:
-    """Score attachment risk."""
+def score_attachments(
+    attachments: list,
+    forensics: list[AttachmentForensics] | None = None,
+) -> CategoryScore:
+    """Score attachment risk with forensics."""
     score = 0
     findings: list[str] = []
 
@@ -128,6 +133,33 @@ def score_attachments(attachments: list) -> CategoryScore:
         if att.extension_mismatch:
             score += 25
             findings.append(f"Extension/MIME mismatch: {att.filename}")
+
+    if forensics:
+        for f in forensics:
+            if f.office_macros and f.office_macros.has_macros:
+                score += 35
+                findings.append(f"VBA macros in {f.filename}: {f.office_macros.macro_count} module(s)")
+                if f.office_macros.suspicious:
+                    score += 25
+                    findings.append(f"Suspicious macro keywords in {f.filename}")
+            if f.pdf:
+                if f.pdf.has_js:
+                    score += 40
+                    findings.append(f"PDF JavaScript in {f.filename}")
+                if f.pdf.has_uris:
+                    score += 15
+                    findings.append(f"PDF embedded URIs in {f.filename}")
+                if f.pdf.suspicious_objects_count > 0:
+                    score += 20
+                    findings.append(f"PDF {f.pdf.suspicious_objects_count} suspicious object(s) in {f.filename}")
+            if f.yara and f.yara.match_count > 0:
+                score += 30
+                findings.append(f"YARA hits in {f.filename}: {f.yara.match_count} rule(s)")
+            if f.hatchery:
+                if f.hatchery.get("status") == "submitted":
+                    findings.append(f"HATCHERY submitted: {f.filename}")
+                elif f.hatchery.get("status") == "failed":
+                    findings.append(f"HATCHERY unavailable for {f.filename}")
 
     return CategoryScore(
         category="attachments",

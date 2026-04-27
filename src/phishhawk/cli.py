@@ -7,6 +7,8 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from phishhawk.attachment_analyzer import analyze_all_attachments
+from phishhawk.attachment_models import AttachmentForensics
 from phishhawk.auth import analyze_authentication
 from phishhawk.auth_models import AuthAnalysis
 from phishhawk.models import EmailAnalysis
@@ -45,6 +47,15 @@ def _mitre_map(
             if "dangerous extension" in f_lower and "T1566.001" not in mitre:
                 mitre.append("T1566.001")
                 recs.append("Quarantine attachment; submit to sandbox")
+            if ("macros" in f_lower or "vba" in f_lower) and "T1204.002" not in mitre:
+                mitre.append("T1204.002")
+                recs.append("Malicious macro attachment — disable Office macros")
+            if "pdf javascript" in f_lower and "T1204.002" not in mitre:
+                mitre.append("T1204.002")
+                recs.append("PDF with embedded JS — inspect and sandbox")
+            if "yara" in f_lower and "T1204.002" not in mitre:
+                mitre.append("T1204.002")
+                recs.append("YARA match on attachment — isolate and analyze")
             if ("homograph" in f_lower or "idn" in f_lower) and "T1566.002" not in mitre:
                 mitre.append("T1566.002")
                 recs.append("IDN homograph URL detected — possible phishing")
@@ -83,6 +94,12 @@ def analyze(
     sandbox_urls: bool = typer.Option(
         False, "--sandbox-urls", help="Enable outbound URL analysis (redirects, SSL, WHOIS)"
     ),
+    detonate_attachments_flag: bool = typer.Option(
+        False, "--detonate-attachments", help="Submit attachments to HATCHERY sandbox"
+    ),
+    yara_rules: str | None = typer.Option(
+        None, "--yara-rules", help="Directory containing YARA rules"
+    ),
 ) -> None:
     """Analyze a single email file."""
     try:
@@ -94,7 +111,10 @@ def analyze(
         console.print(f"[red]Parse error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
+    # Auth analysis
     auth = analyze_authentication(parsed.headers)
+
+    # URL analysis
     urls = extract_and_analyze_urls(
         parsed.body_text,
         parsed.body_html,
@@ -102,7 +122,33 @@ def analyze(
         parsed.headers.raw_headers,
         allow_outbound=sandbox_urls,
     )
-    risk = score_email(parsed, auth, urls)
+
+    # Attachment forensics
+    forensics_raw = analyze_all_attachments(parsed.attachments, parsed.raw_payloads, yara_rules)
+    forensics: list[AttachmentForensics] = []
+    for fr in forensics_raw:
+        # Convert dict to AttachmentForensics model
+        f = AttachmentForensics(
+            filename=fr.get("filename", ""),
+            sha256=fr.get("sha256"),
+            mime_type=fr.get("mime_type"),
+            is_dangerous=fr.get("is_dangerous", False),
+            office_macros=fr.get("office_macros"),
+            pdf=fr.get("pdf"),
+            yara=fr.get("yara"),
+            archive_extracted=fr.get("archive_extracted", []),
+            findings=fr.get("findings", []),
+        ) if isinstance(fr, dict) else fr
+
+        # HATCHERY detonation (placeholder — HATCHERY spec-stage)
+        if detonate_attachments_flag:
+            f.hatchery = {"status": "unavailable", "note": "HATCHERY not yet running"}
+            f.findings.append("HATCHERY: unavailable — sandbox not yet running")
+
+        forensics.append(f)
+
+    # Scoring
+    risk = score_email(parsed, auth, urls, forensics)
     mitre, recs = _mitre_map(risk.categories, auth)
 
     analysis = EmailAnalysis(
@@ -113,6 +159,7 @@ def analyze(
         authentication=auth,
         urls=urls,
         attachments=parsed.attachments,
+        attachment_forensics=forensics,
         mitre=mitre,
         recommendations=recs,
         body_text=parsed.body_text,
@@ -168,7 +215,22 @@ def batch(
                 parsed.headers.raw_headers,
                 allow_outbound=False,
             )
-            risk = score_email(parsed, auth, urls)
+            forensics_raw = analyze_all_attachments(parsed.attachments, parsed.raw_payloads)
+            forensics = []
+            for fr in forensics_raw:
+                fobj = AttachmentForensics(
+                    filename=fr.get("filename", ""),
+                    sha256=fr.get("sha256"),
+                    mime_type=fr.get("mime_type"),
+                    is_dangerous=fr.get("is_dangerous", False),
+                    office_macros=fr.get("office_macros"),
+                    pdf=fr.get("pdf"),
+                    yara=fr.get("yara"),
+                    findings=fr.get("findings", []),
+                ) if isinstance(fr, dict) else fr
+                forensics.append(fobj)
+
+            risk = score_email(parsed, auth, urls, forensics)
             analysis = EmailAnalysis(
                 file=parsed.file_path,
                 file_hash=parsed.file_sha256,
@@ -177,6 +239,7 @@ def batch(
                 authentication=auth,
                 urls=urls,
                 attachments=parsed.attachments,
+                attachment_forensics=forensics,
             )
             results.append(export_json(analysis))
         except Exception as exc:

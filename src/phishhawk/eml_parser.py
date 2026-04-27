@@ -38,7 +38,7 @@ def _parse_message_object(
 ) -> ParsedEmail:
     headers = parse_headers(msg)
     body_text, body_html = extract_bodies(msg)
-    attachments = extract_attachments_from_message(msg)
+    attachments, raw_payloads = extract_attachments_from_message(msg)
     hashes = compute_hashes(raw_bytes)
 
     return ParsedEmail(
@@ -50,6 +50,7 @@ def _parse_message_object(
         body_text=body_text,
         body_html=body_html,
         attachments=attachments,
+        raw_payloads=raw_payloads,
     )
 
 

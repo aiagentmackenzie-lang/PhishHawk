@@ -47,12 +47,16 @@ def process_attachment(filename: str, mime_type: str, payload: bytes) -> Attachm
     )
 
 
-def extract_attachments_from_message(msg: Any) -> list[AttachmentInfo]:
-    """Walk a MIME message and extract all attachment payloads."""
+def extract_attachments_from_message(msg: Any) -> tuple[list[AttachmentInfo], dict[str, bytes]]:
+    """Walk a MIME message and extract all attachment payloads.
+
+    Returns (attachments list, raw_payloads dict).
+    """
     attachments: list[AttachmentInfo] = []
+    raw_payloads: dict[str, bytes] = {}
 
     if not msg.is_multipart():
-        return attachments
+        return attachments, raw_payloads
 
     for part in msg.walk():
         cdisp = part.get_content_disposition()
@@ -68,5 +72,6 @@ def extract_attachments_from_message(msg: Any) -> list[AttachmentInfo]:
             att.content_disposition = cdisp
             att.content_id = part.get("Content-ID")
             attachments.append(att)
+            raw_payloads[att.filename] = payload
 
-    return attachments
+    return attachments, raw_payloads

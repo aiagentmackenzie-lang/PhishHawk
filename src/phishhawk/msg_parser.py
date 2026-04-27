@@ -34,6 +34,7 @@ def parse_msg(file_path: str) -> ParsedEmail:
     )
 
     attachments: list[AttachmentInfo] = []
+    raw_payloads: dict[str, bytes] = {}
     for att in msg.attachments:
         if hasattr(att, "data") and att.data:
             info = process_attachment(
@@ -42,6 +43,7 @@ def parse_msg(file_path: str) -> ParsedEmail:
                 att.data,
             )
             attachments.append(info)
+            raw_payloads[info.filename] = att.data
 
     return ParsedEmail(
         file_path=str(Path(file_path).absolute()),
@@ -50,4 +52,5 @@ def parse_msg(file_path: str) -> ParsedEmail:
         body_text=msg.body or None,
         body_html=msg.htmlBody or None,
         attachments=attachments,
+        raw_payloads=raw_payloads,
     )

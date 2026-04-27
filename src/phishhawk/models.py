@@ -7,6 +7,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
+from phishhawk.attachment_models import AttachmentForensics
 from phishhawk.auth_models import AuthAnalysis
 from phishhawk.url_models import URLAnalysis
 
@@ -81,6 +82,9 @@ class ParsedEmail(BaseModel):
     body_text: str | None = None
     body_html: str | None = None
     attachments: list[AttachmentInfo] = Field(default_factory=list)
+    raw_payloads: dict[str, bytes] = Field(default_factory=dict)
+
+    model_config = {"json_schema_extra": {}}
 
 
 class CategoryScore(BaseModel):
@@ -122,6 +126,7 @@ class EmailAnalysis(BaseModel):
     risk: RiskScore = Field(default_factory=RiskScore)
     headers: HeaderInfo = Field(default_factory=HeaderInfo)
     authentication: AuthAnalysis | None = None
+    attachment_forensics: list[AttachmentForensics] = Field(default_factory=list)
     urls: list[URLAnalysis] = Field(default_factory=list)
     attachments: list[AttachmentInfo] = Field(default_factory=list)
     iocs: IOCs = Field(default_factory=IOCs)

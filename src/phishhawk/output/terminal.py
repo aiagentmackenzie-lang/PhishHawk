@@ -139,22 +139,54 @@ def render_terminal(analysis: EmailAnalysis) -> None:
             url_table.add_row(f"[{style}]{display_url}[/{style}]", " ".join(flags))
         console.print(url_table)
 
-    # Attachments table
+    # Attachments panel + forensics (Phase 4)
     if analysis.attachments:
         att_table = Table(title="Attachments")
         att_table.add_column("Filename")
         att_table.add_column("MIME Type")
         att_table.add_column("Size", justify="right")
-        att_table.add_column("SHA256 (short)", style="dim")
+        att_table.add_column("Forensics", style="dim")
         for att in analysis.attachments:
             style = "red" if att.is_dangerous else "green"
+            forensics_line = ""
+            if analysis.attachment_forensics:
+                f = next(
+                    (af for af in analysis.attachment_forensics if af.filename == att.filename),
+                    None,
+                )
+                if f:
+                    forensic_flags: list[str] = []
+                    if f.office_macros and f.office_macros.has_macros:
+                        forensic_flags.append("[red]macros[/red]")
+                    if f.pdf and f.pdf.has_js:
+                        forensic_flags.append("[red]PDF-JS[/red]")
+                    if f.yara and f.yara.match_count > 0:
+                        forensic_flags.append(f"[yellow]YARA×{f.yara.match_count}[/yellow]")
+                    if f.hatchery and f.hatchery.get("status") == "submitted":
+                        forensic_flags.append("[cyan]HATCHERY[/cyan]")
+                    if f.archive_extracted:
+                        forensic_flags.append(f"[yellow]ZIP+{len(f.archive_extracted)}[/yellow]")
+                    forensics_line = " ".join(forensic_flags) if forensic_flags else "clean"
             att_table.add_row(
                 f"[{style}]{att.filename}[/{style}]",
                 att.mime_type,
                 f"{att.size:,}",
-                (att.sha256 or "N/A")[:16] + "...",
+                forensics_line or "",
             )
         console.print(att_table)
+
+        # Attachment findings panel
+        all_findings: list[str] = []
+        for af in analysis.attachment_forensics:
+            all_findings.extend(af.findings)
+        if all_findings:
+            console.print(
+                Panel(
+                    "\n".join(f"• {f}" for f in all_findings[:6]),
+                    title="[bold]Attachment Findings[/bold]",
+                    border_style="red" if any("macro" in f.lower() or "js" in f.lower() or "yara" in f.lower() for f in all_findings) else "yellow",
+                )
+            )
 
     # MITRE mapping
     if analysis.mitre:
