@@ -9,19 +9,12 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from phishhawk.attachment_analyzer import analyze_all_attachments
-from phishhawk.attachment_models import AttachmentForensics
-from phishhawk.auth import analyze_authentication
-from phishhawk.iocs import extract_iocs
-from phishhawk.mitre import build_recommendations, map_findings_to_mitre
+from phishhawk.engine import run_analysis
 from phishhawk.models import EmailAnalysis
 from phishhawk.output.json_out import export_json, export_ndjson
 from phishhawk.output.markdown_out import export_markdown
 from phishhawk.output.stix_out import export_misp_json, export_stix_json
 from phishhawk.output.terminal import render_terminal
-from phishhawk.parser import parse_email
-from phishhawk.scoring import score_email
-from phishhawk.url_analyzer import extract_and_analyze_urls
 
 app = typer.Typer(
     name="phishhawk",
@@ -30,88 +23,6 @@ app = typer.Typer(
     add_completion=False,
 )
 console = Console()
-
-
-def _run_analysis(
-    file: str,
-    *,
-    sandbox_urls: bool = False,
-    detonate_attachments_flag: bool = False,
-    yara_rules: str | None = None,
-) -> EmailAnalysis:
-    """Core analysis pipeline shared across commands."""
-    parsed = parse_email(file)
-
-    # Auth analysis
-    auth = analyze_authentication(parsed.headers)
-
-    # URL analysis
-    urls = extract_and_analyze_urls(
-        parsed.body_text,
-        parsed.body_html,
-        parsed.headers.subject,
-        parsed.headers.raw_headers,
-        allow_outbound=sandbox_urls,
-    )
-
-    # Attachment forensics
-    forensics_raw = analyze_all_attachments(
-        parsed.attachments, parsed.raw_payloads, yara_rules
-    )
-    forensics: list[AttachmentForensics] = []
-    for fr in forensics_raw:
-        f = (
-            AttachmentForensics(
-                filename=fr.get("filename", ""),
-                sha256=fr.get("sha256"),
-                mime_type=fr.get("mime_type"),
-                is_dangerous=fr.get("is_dangerous", False),
-                office_macros=fr.get("office_macros"),
-                pdf=fr.get("pdf"),
-                yara=fr.get("yara"),
-                archive_extracted=fr.get("archive_extracted", []),
-                findings=fr.get("findings", []),
-            )
-            if isinstance(fr, dict)
-            else fr
-        )
-
-        if detonate_attachments_flag:
-            f.hatchery = {"status": "unavailable", "note": "HATCHERY not yet running"}
-            f.findings.append("HATCHERY: unavailable — sandbox not yet running")
-
-        forensics.append(f)
-
-    # IOC extraction (Phase 5)
-    iocs = extract_iocs(parsed)
-
-    # Scoring
-    risk = score_email(parsed, auth, urls, forensics, iocs)
-
-    # MITRE mapping (Phase 5 — auto-map from all findings)
-    all_findings: list[str] = []
-    for cat in risk.categories:
-        all_findings.extend(cat.findings)
-    mitre_ids = map_findings_to_mitre(all_findings)
-    recs = build_recommendations(mitre_ids)
-    if not recs:
-        recs = ["No immediate action required"]
-
-    return EmailAnalysis(
-        file=parsed.file_path,
-        file_hash=parsed.file_sha256,
-        risk=risk,
-        headers=parsed.headers,
-        authentication=auth,
-        urls=urls,
-        attachments=parsed.attachments,
-        attachment_forensics=forensics,
-        iocs=iocs,
-        mitre=mitre_ids,
-        recommendations=recs,
-        body_text=parsed.body_text,
-        body_html=parsed.body_html,
-    )
 
 
 @app.command()
@@ -140,10 +51,10 @@ def analyze(
 ) -> None:
     """Analyze a single email file."""
     try:
-        analysis = _run_analysis(
+        analysis = run_analysis(
             file,
             sandbox_urls=sandbox_urls,
-            detonate_attachments_flag=detonate_attachments_flag,
+            detonate_attachments=detonate_attachments_flag,
             yara_rules=yara_rules,
         )
     except FileNotFoundError as exc:
@@ -203,7 +114,7 @@ def batch(
     analyses: list[EmailAnalysis] = []
     for f in files:
         try:
-            analysis = _run_analysis(str(f))
+            analysis = run_analysis(str(f))
             analyses.append(analysis)
         except Exception as exc:
             console.print(f"[yellow]Skipping {f.name}: {exc}[/yellow]")
@@ -238,8 +149,8 @@ def compare(
 ) -> None:
     """Compare two email analyses (campaign variant diff)."""
     try:
-        analysis1 = _run_analysis(file1)
-        analysis2 = _run_analysis(file2)
+        analysis1 = run_analysis(file1)
+        analysis2 = run_analysis(file2)
     except FileNotFoundError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
