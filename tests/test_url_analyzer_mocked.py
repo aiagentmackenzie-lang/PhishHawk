@@ -9,7 +9,6 @@ from phishhawk.url_analyzer import (
     analyze_whois,
     domain_entropy,
     extract_and_analyze_urls,
-    extract_urls,
     is_defanged,
     is_homograph,
     is_raw_ip,
@@ -89,7 +88,7 @@ def test_trace_redirects_mocked() -> None:
         # This may not fully work due to the implementation detail,
         # but it tests the import and basic call pattern
         try:
-            chain = trace_redirects("https://short.url/abc")
+            trace_redirects("https://short.url/abc")
         except Exception:
             pass  # Expected if mock doesn't perfectly match implementation
 
@@ -99,7 +98,7 @@ def test_analyze_ssl_mocked() -> None:
     with patch("phishhawk.url_analyzer.ssl") as mock_ssl:
         mock_ssl.create_default_context.side_effect = Exception("Connection refused")
         try:
-            result = analyze_ssl("evil.com")
+            analyze_ssl("evil.com")
         except Exception:
             pass  # May return None or raise depending on implementation
 
@@ -112,7 +111,7 @@ def test_whois_lookup_mocked() -> None:
         mock_result.registrar = None
         mock_whois_mod.whois.return_value = mock_result
         try:
-            result = analyze_whois("example.com")
+            analyze_whois("example.com")
         except Exception:
             pass  # May return None or raise
 

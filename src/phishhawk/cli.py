@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from phishhawk.config import get_config
 from phishhawk.engine import run_analysis
 from phishhawk.models import EmailAnalysis
 from phishhawk.output.json_out import export_json, export_ndjson
@@ -312,3 +313,55 @@ def _render_compare_markdown(a1: EmailAnalysis, a2: EmailAnalysis) -> str:
 
 if __name__ == "__main__":
     app()
+
+
+@app.command()
+def config(
+    show: bool = typer.Option(True, "--show", help="Show current configuration"),
+    init: bool = typer.Option(False, "--init", help="Create default config at ~/.phishhawk/config.toml"),
+) -> None:
+    """View or initialise PhishHawk configuration."""
+    if init:
+        cfg_dir = Path.home() / ".phishhawk"
+        cfg_dir.mkdir(exist_ok=True)
+        cfg_path = cfg_dir / "config.toml"
+        if cfg_path.exists():
+            console.print(f"[yellow]Config already exists at {cfg_path}[/yellow]")
+            raise typer.Exit(0)
+        default_content = """# PhishHawk Configuration
+# See: https://github.com/aiagentmackenzie-lang/PhishHawk
+
+[hatchery]
+endpoint = "http://localhost:8000/api"
+timeout = 30
+
+[dns]
+timeout = 10
+retries = 2
+
+[scoring.weights]
+authentication = 30
+headers = 15
+urls = 25
+attachments = 15
+iocs = 15
+
+[output]
+terminal_width = 100
+color = true
+
+[dkim]
+selectors = ["default", "google", "selector1", "selector2"]
+"""
+        cfg_path.write_text(default_content)
+        console.print(f"[green]Created default config at {cfg_path}[/green]")
+        raise typer.Exit(0)
+
+    if show:
+        cfg = get_config()
+        table = Table(title="PhishHawk Configuration")
+        table.add_column("Setting")
+        table.add_column("Value")
+        for k, v in cfg.__dict__.items():
+            table.add_row(k, str(v))
+        console.print(table)

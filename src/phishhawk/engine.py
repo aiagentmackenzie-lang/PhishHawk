@@ -10,6 +10,7 @@ from __future__ import annotations
 from phishhawk.attachment_analyzer import analyze_all_attachments
 from phishhawk.attachment_models import AttachmentForensics
 from phishhawk.auth import analyze_authentication
+from phishhawk.config import get_config
 from phishhawk.iocs import extract_iocs
 from phishhawk.mitre import build_recommendations, map_findings_to_mitre
 from phishhawk.models import EmailAnalysis
@@ -37,6 +38,9 @@ def run_analysis(
         EmailAnalysis with all findings populated.
     """
     parsed = parse_email(file)
+
+    # Load config (lazy singleton)
+    get_config()
 
     # Auth analysis
     auth = analyze_authentication(parsed.headers)

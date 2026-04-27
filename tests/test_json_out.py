@@ -42,7 +42,7 @@ def test_export_json_returns_string() -> None:
 def test_export_json_writes_file(tmp_path: Path) -> None:
     analysis = _minimal_analysis()
     outfile = str(tmp_path / "out.json")
-    result = export_json(analysis, outfile)
+    export_json(analysis, outfile)
     assert Path(outfile).exists()
     data = json.loads(Path(outfile).read_text())
     assert data["file"] == "test.eml"

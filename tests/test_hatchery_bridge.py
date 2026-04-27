@@ -105,6 +105,7 @@ def test_detonate_attachments_success() -> None:
 def test_endpoint_env_override() -> None:
     """HATCHERY_ENDPOINT env var should override default."""
     import os
+
     from phishhawk.hatchery_bridge import _endpoint
     original = os.environ.get("HATCHERY_ENDPOINT")
     try:

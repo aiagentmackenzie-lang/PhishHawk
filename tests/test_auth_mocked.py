@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import checkdmarc
+import dns.resolver
+
 from phishhawk.auth import (
     check_alignment,
     check_free_email,
@@ -12,9 +15,6 @@ from phishhawk.auth import (
     validate_dmarc,
     validate_spf,
 )
-from phishhawk.auth_models import AlignmentCheck, DMARCResult, SPFResult
-import checkdmarc
-import dns.resolver
 
 
 def test_parse_auth_header_all_pass() -> None:

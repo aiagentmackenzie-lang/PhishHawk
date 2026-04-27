@@ -12,7 +12,16 @@ HATCHERY_DEFAULT_ENDPOINT = "http://localhost:8000/api/v1"
 
 
 def _endpoint() -> str:
-    return os.environ.get("HATCHERY_ENDPOINT", HATCHERY_DEFAULT_ENDPOINT)
+    # Prefer env var, then config, then default
+    env_val = os.environ.get("HATCHERY_ENDPOINT")
+    if env_val:
+        return env_val
+    try:
+        from phishhawk.config import get_config
+        cfg = get_config()
+        return cfg.hatchery_endpoint
+    except Exception:
+        return HATCHERY_DEFAULT_ENDPOINT
 
 
 def _api_key() -> str | None:

@@ -18,9 +18,9 @@ from phishhawk.output.terminal import render_terminal
 
 
 def _minimal_analysis(**overrides) -> EmailAnalysis:
-    defaults = dict(
-        file="test.eml",
-        headers=HeaderInfo(
+    defaults = {
+        "file": "test.eml",
+        "headers": HeaderInfo(
             from_address="phish@evil.com",
             to_addresses=["victim@example.com"],
             subject="Urgent: Verify Your Account",
@@ -28,7 +28,7 @@ def _minimal_analysis(**overrides) -> EmailAnalysis:
             return_path="bounce@evil.com",
             authentication_results="spf=fail; dkim=fail; dmarc=fail",
         ),
-        risk=RiskScore(
+        "risk": RiskScore(
             total=75,
             level=RiskLevel.HIGH,
             categories=[
@@ -39,15 +39,15 @@ def _minimal_analysis(**overrides) -> EmailAnalysis:
                 CategoryScore(category="iocs", score=38, findings=["IPv4: 2", "Domains: 10"]),
             ],
         ),
-        iocs=IOCs(
+        "iocs": IOCs(
             ipv4=["192.168.1.100", "10.0.0.1"],
             domains=["evil.com", "phish.net"],
             urls=["https://evil.com/verify"],
             emails=["phish@evil.com", "victim@example.com"],
         ),
-        mitre=["T1566.001", "T1566.002"],
-        recommendations=["Block sender domain", "Quarantine attachment"],
-    )
+        "mitre": ["T1566.001", "T1566.002"],
+        "recommendations": ["Block sender domain", "Quarantine attachment"],
+    }
     defaults.update(overrides)
     return EmailAnalysis(**defaults)
 
@@ -57,10 +57,10 @@ def test_render_terminal_no_crash() -> None:
     analysis = _minimal_analysis()
     # Capture output via Rich Console
     buf = StringIO()
-    console = Console(file=buf, force_terminal=True, width=120)
+    Console(file=buf, force_terminal=True, width=120)
     # Monkey-patch the module console to use our capture console
     import phishhawk.output.terminal as term_mod
-    orig_console = term_mod.console if hasattr(term_mod, 'console') else None
+    term_mod.console if hasattr(term_mod, 'console') else None
     # render_terminal creates its own Console, so we just check it doesn't raise
     try:
         render_terminal(analysis)

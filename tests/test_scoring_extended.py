@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from phishhawk.attachment_models import AttachmentForensics, OfficeMacroAnalysis, PDFAnalysis, YARAResult
+from phishhawk.attachment_models import (
+    AttachmentForensics,
+    OfficeMacroAnalysis,
+    PDFAnalysis,
+)
 from phishhawk.auth_models import (
     AlignmentCheck,
     AuthAnalysis,
@@ -11,12 +15,10 @@ from phishhawk.auth_models import (
 )
 from phishhawk.models import (
     AttachmentInfo,
-    CategoryScore,
     HeaderInfo,
     IOCs,
     ParsedEmail,
     RiskLevel,
-    RiskScore,
 )
 from phishhawk.scoring import (
     score_attachments,
@@ -30,11 +32,11 @@ from phishhawk.url_models import URLAnalysis
 
 
 def _parsed(**overrides) -> ParsedEmail:
-    defaults = dict(
-        file_path="test.eml",
-        file_type="eml",
-        headers=HeaderInfo(from_address="test@example.com", to_addresses=["victim@example.com"]),
-    )
+    defaults = {
+        "file_path": "test.eml",
+        "file_type": "eml",
+        "headers": HeaderInfo(from_address="test@example.com", to_addresses=["victim@example.com"]),
+    }
     defaults.update(overrides)
     return ParsedEmail(**defaults)
 
