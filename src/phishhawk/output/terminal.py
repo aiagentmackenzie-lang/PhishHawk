@@ -66,6 +66,49 @@ def render_terminal(analysis: EmailAnalysis) -> None:
             )
         )
 
+    # Authentication panel (Phase 2)
+    if analysis.authentication:
+        auth = analysis.authentication
+        lines: list[str] = []
+        if auth.spf and auth.spf.domain:
+            status = "[green]valid[/green]" if auth.spf.valid else "[red]invalid/missing[/red]"
+            lines.append(f"[bold]SPF[/bold]  {auth.spf.domain} — {status}")
+        if auth.dmarc and auth.dmarc.domain:
+            policy = auth.dmarc.policy or "none"
+            status = "[green]valid[/green]" if auth.dmarc.valid else "[red]invalid[/red]"
+            color = "green" if auth.dmarc.alignment_required else "yellow"
+            lines.append(
+                f"[bold]DMARC[/bold] {auth.dmarc.domain} — policy=[{color}]{policy}[/{color}], {status}"
+            )
+        if auth.alignment:
+            spf_a = "[green]✓[/green]" if auth.alignment.spf_aligned else "[red]✗[/red]"
+            dkim_a = "[green]✓[/green]" if auth.alignment.dkim_aligned else "[red]✗[/red]"
+            lines.append(
+                f"[bold]Alignment[/bold] SPF={spf_a}  DKIM={dkim_a}"
+            )
+            if auth.alignment.reason:
+                lines.append(f"[dim]{auth.alignment.reason}[/dim]")
+        if auth.ptr:
+            for p in auth.ptr[:3]:
+                host = p.hostname or "[dim]no PTR[/dim]"
+                lines.append(f"[bold]PTR[/bold] {p.ip} → {host}")
+        if auth.free_email_providers:
+            lines.append(
+                f"[bold yellow]Free Email:[/bold yellow] {', '.join(auth.free_email_providers)}"
+            )
+        if auth.timestamp_drift_flagged:
+            lines.append(
+                f"[yellow]Timestamp drift:[/yellow] {auth.timestamp_drift_seconds}s"
+            )
+        if lines:
+            console.print(
+                Panel(
+                    "\n".join(lines),
+                    title="[bold]Authentication (DNS)[/bold]",
+                    border_style="cyan",
+                )
+            )
+
     # Attachments table
     if analysis.attachments:
         att_table = Table(title="Attachments")

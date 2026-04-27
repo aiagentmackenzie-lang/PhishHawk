@@ -7,6 +7,8 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from phishhawk.auth import analyze_authentication
+from phishhawk.auth_models import AuthAnalysis
 from phishhawk.models import EmailAnalysis
 from phishhawk.output.json_out import export_json
 from phishhawk.output.terminal import render_terminal
@@ -22,7 +24,10 @@ app = typer.Typer(
 console = Console()
 
 
-def _mitre_map(categories: list) -> tuple[list[str], list[str]]:
+def _mitre_map(
+    categories: list,
+    auth: AuthAnalysis | None = None,
+) -> tuple[list[str], list[str]]:
     """Map findings to MITRE techniques and recommendations."""
     mitre: list[str] = []
     recs: list[str] = []
@@ -30,22 +35,28 @@ def _mitre_map(categories: list) -> tuple[list[str], list[str]]:
     for cat in categories:
         for finding in cat.findings:
             f_lower = finding.lower()
-            if "display name spoofing" in f_lower or "reply-to mismatch" in f_lower:
-                if "T1656" not in mitre:
-                    mitre.append("T1656")
-                    recs.append("Investigate impersonation / display name spoofing")
-            if "spf=fail" in f_lower or "dkim=fail" in f_lower or "dmarc=fail" in f_lower:
-                if "T1566.001" not in mitre:
-                    mitre.append("T1566.001")
-                    recs.append("Validate sender via secondary channel")
-            if "dangerous extension" in f_lower:
-                if "T1566.001" not in mitre:
-                    mitre.append("T1566.001")
-                    recs.append("Quarantine attachment; submit to sandbox")
-            if "authentication failed" in f_lower or "no authentication-results" in f_lower:
-                if "T1566.002" not in mitre:
-                    mitre.append("T1566.002")
-                    recs.append("Treat embedded links with extreme caution")
+            if ("display name spoofing" in f_lower or "reply-to mismatch" in f_lower) and "T1656" not in mitre:
+                mitre.append("T1656")
+                recs.append("Investigate impersonation / display name spoofing")
+            if ("spf=fail" in f_lower or "dkim=fail" in f_lower or "dmarc=fail" in f_lower) and "T1566.001" not in mitre:
+                mitre.append("T1566.001")
+                recs.append("Validate sender via secondary channel")
+            if "dangerous extension" in f_lower and "T1566.001" not in mitre:
+                mitre.append("T1566.001")
+                recs.append("Quarantine attachment; submit to sandbox")
+            if ("authentication failed" in f_lower or "no authentication-results" in f_lower) and "T1566.002" not in mitre:
+                mitre.append("T1566.002")
+                recs.append("Treat embedded links with extreme caution")
+            if ("alignment failed" in f_lower or "dmarc alignment" in f_lower) and "T1566.002" not in mitre:
+                mitre.append("T1566.002")
+                recs.append("DMARC alignment failed — possible spoofing")
+            if "timestamp drift" in f_lower and "T1078" not in mitre:
+                mitre.append("T1078")
+                recs.append("Investigate timestamp manipulation")
+
+    if (auth and isinstance(auth, AuthAnalysis) and auth.free_email_providers) and "T1589" not in mitre:
+        mitre.append("T1589")
+        recs.append("Free email provider detected — possible reconnaissance")
 
     return mitre, recs if recs else ["No immediate action required"]
 
@@ -70,14 +81,16 @@ def analyze(
         console.print(f"[red]Parse error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
-    risk = score_email(parsed)
-    mitre, recs = _mitre_map(risk.categories)
+    auth = analyze_authentication(parsed.headers)
+    risk = score_email(parsed, auth)
+    mitre, recs = _mitre_map(risk.categories, auth)
 
     analysis = EmailAnalysis(
         file=parsed.file_path,
         file_hash=parsed.file_sha256,
         risk=risk,
         headers=parsed.headers,
+        authentication=auth,
         attachments=parsed.attachments,
         mitre=mitre,
         recommendations=recs,
@@ -126,12 +139,14 @@ def batch(
     for f in files:
         try:
             parsed = parse_email(str(f))
-            risk = score_email(parsed)
+            auth = analyze_authentication(parsed.headers)
+            risk = score_email(parsed, auth)
             analysis = EmailAnalysis(
                 file=parsed.file_path,
                 file_hash=parsed.file_sha256,
                 risk=risk,
                 headers=parsed.headers,
+                authentication=auth,
                 attachments=parsed.attachments,
             )
             results.append(export_json(analysis))

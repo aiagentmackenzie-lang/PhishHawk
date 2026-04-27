@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
 
 from pydantic import BaseModel, Field
+
+from phishhawk.auth_models import AuthAnalysis
 
 
 class RiskLevel(str, Enum):
@@ -132,7 +133,7 @@ class EmailAnalysis(BaseModel):
     file_hash: str | None = None
     risk: RiskScore = Field(default_factory=RiskScore)
     headers: HeaderInfo = Field(default_factory=HeaderInfo)
-    authentication: dict[str, Any] = Field(default_factory=dict)
+    authentication: AuthAnalysis | None = None
     urls: list[URLInfo] = Field(default_factory=list)
     attachments: list[AttachmentInfo] = Field(default_factory=list)
     iocs: IOCs = Field(default_factory=IOCs)

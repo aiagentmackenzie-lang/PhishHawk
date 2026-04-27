@@ -6,7 +6,7 @@ from pathlib import Path
 
 from phishhawk.attachments import process_attachment
 from phishhawk.headers import extract_address, extract_addresses, parse_date
-from phishhawk.models import AttachmentInfo, FileType, HeaderInfo, ParsedEmail, ReceivedHop
+from phishhawk.models import AttachmentInfo, FileType, HeaderInfo, ParsedEmail
 
 
 def parse_msg(file_path: str) -> ParsedEmail:

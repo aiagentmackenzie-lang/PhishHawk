@@ -17,7 +17,7 @@ def parse_mbox(file_path: str) -> ParsedEmail:
 
     # Get first non-empty message
     first_msg = None
-    for key in mbox.keys():
+    for key in mbox:
         candidate = mbox[key]
         if candidate:
             first_msg = candidate
