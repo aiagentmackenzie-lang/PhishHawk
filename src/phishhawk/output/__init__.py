@@ -1,0 +1,1 @@
+"""PhishHawk output formatters."""
