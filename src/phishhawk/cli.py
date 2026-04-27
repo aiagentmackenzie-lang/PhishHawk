@@ -14,6 +14,7 @@ from phishhawk.output.json_out import export_json
 from phishhawk.output.terminal import render_terminal
 from phishhawk.parser import parse_email
 from phishhawk.scoring import score_email
+from phishhawk.url_analyzer import extract_and_analyze_urls
 
 app = typer.Typer(
     name="phishhawk",
@@ -44,6 +45,15 @@ def _mitre_map(
             if "dangerous extension" in f_lower and "T1566.001" not in mitre:
                 mitre.append("T1566.001")
                 recs.append("Quarantine attachment; submit to sandbox")
+            if ("homograph" in f_lower or "idn" in f_lower) and "T1566.002" not in mitre:
+                mitre.append("T1566.002")
+                recs.append("IDN homograph URL detected — possible phishing")
+            if "raw ip" in f_lower and "T1566.002" not in mitre:
+                mitre.append("T1566.002")
+                recs.append("Raw IP URL — suspicious delivery mechanism")
+            if "shortened" in f_lower and "T1566.003" not in mitre:
+                mitre.append("T1566.003")
+                recs.append("URL shortener used — inspect destination")
             if ("authentication failed" in f_lower or "no authentication-results" in f_lower) and "T1566.002" not in mitre:
                 mitre.append("T1566.002")
                 recs.append("Treat embedded links with extreme caution")
@@ -70,6 +80,9 @@ def analyze(
     outfile: str | None = typer.Option(
         None, "--outfile", "-f", help="Write output to file"
     ),
+    sandbox_urls: bool = typer.Option(
+        False, "--sandbox-urls", help="Enable outbound URL analysis (redirects, SSL, WHOIS)"
+    ),
 ) -> None:
     """Analyze a single email file."""
     try:
@@ -82,7 +95,14 @@ def analyze(
         raise typer.Exit(1) from exc
 
     auth = analyze_authentication(parsed.headers)
-    risk = score_email(parsed, auth)
+    urls = extract_and_analyze_urls(
+        parsed.body_text,
+        parsed.body_html,
+        parsed.headers.subject,
+        parsed.headers.raw_headers,
+        allow_outbound=sandbox_urls,
+    )
+    risk = score_email(parsed, auth, urls)
     mitre, recs = _mitre_map(risk.categories, auth)
 
     analysis = EmailAnalysis(
@@ -91,6 +111,7 @@ def analyze(
         risk=risk,
         headers=parsed.headers,
         authentication=auth,
+        urls=urls,
         attachments=parsed.attachments,
         mitre=mitre,
         recommendations=recs,
@@ -140,13 +161,21 @@ def batch(
         try:
             parsed = parse_email(str(f))
             auth = analyze_authentication(parsed.headers)
-            risk = score_email(parsed, auth)
+            urls = extract_and_analyze_urls(
+                parsed.body_text,
+                parsed.body_html,
+                parsed.headers.subject,
+                parsed.headers.raw_headers,
+                allow_outbound=False,
+            )
+            risk = score_email(parsed, auth, urls)
             analysis = EmailAnalysis(
                 file=parsed.file_path,
                 file_hash=parsed.file_sha256,
                 risk=risk,
                 headers=parsed.headers,
                 authentication=auth,
+                urls=urls,
                 attachments=parsed.attachments,
             )
             results.append(export_json(analysis))

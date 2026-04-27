@@ -1,9 +1,10 @@
-"""Risk scoring engine v2 — live auth + static heuristics."""
+"""Risk scoring engine v3 — auth + URL + static heuristics."""
 
 from __future__ import annotations
 
 from phishhawk.auth_models import AuthAnalysis
 from phishhawk.models import CategoryScore, HeaderInfo, ParsedEmail, RiskLevel, RiskScore
+from phishhawk.url_models import URLAnalysis
 
 SUSPICIOUS_DISPLAY_NAMES = {
     "amazon",
@@ -23,13 +24,17 @@ SUSPICIOUS_DISPLAY_NAMES = {
 }
 
 
-def score_email(parsed: ParsedEmail, auth: AuthAnalysis | None = None) -> RiskScore:
+def score_email(
+    parsed: ParsedEmail,
+    auth: AuthAnalysis | None = None,
+    urls: list[URLAnalysis] | None = None,
+) -> RiskScore:
     """Run all scoring modules and return aggregate risk."""
     categories: list[CategoryScore] = [
         score_authentication(parsed.headers, auth),
         score_attachments(parsed.attachments),
         score_headers(parsed.headers),
-        CategoryScore(category="urls", score=0, findings=["URL analysis: Phase 3"]),
+        score_urls(urls or []),
         CategoryScore(category="iocs", score=0, findings=["IOC extraction: Phase 5"]),
     ]
 
@@ -44,7 +49,6 @@ def score_authentication(headers: HeaderInfo, auth: AuthAnalysis | None = None) 
     score = 0
     findings: list[str] = []
 
-    # --- Header-based static checks ---
     auth_header = headers.authentication_results or ""
     auth_lower = auth_header.lower()
 
@@ -70,12 +74,10 @@ def score_authentication(headers: HeaderInfo, auth: AuthAnalysis | None = None) 
         score += 20
         findings.append("No Authentication-Results header")
 
-    # Reply-To / From mismatch
     if headers.reply_to and headers.from_address and headers.reply_to.lower() != headers.from_address.lower():
         score += 30
         findings.append(f"Reply-To mismatch: {headers.reply_to} vs {headers.from_address}")
 
-    # Display name spoofing
     if headers.from_display_name and headers.from_address:
         name_lower = headers.from_display_name.lower()
         addr_lower = headers.from_address.lower()
@@ -85,7 +87,6 @@ def score_authentication(headers: HeaderInfo, auth: AuthAnalysis | None = None) 
                 f"Display name spoofing suspected: '{headers.from_display_name}'"
             )
 
-    # --- Live DNS data (Phase 2) ---
     if auth:
         if auth.spf and auth.spf.valid is False:
             score += 20
@@ -94,7 +95,7 @@ def score_authentication(headers: HeaderInfo, auth: AuthAnalysis | None = None) 
             score += 15
             findings.append(f"DMARC policy is 'none' for {auth.dmarc.domain}")
         if auth.dmarc and auth.dmarc.policy == "reject":
-            score -= 10  # bonus for strong policy
+            score -= 10
         if auth.alignment and not auth.alignment.dmarc_pass:
             score += 30
             findings.append("DMARC alignment failed (live DNS)")
@@ -104,7 +105,6 @@ def score_authentication(headers: HeaderInfo, auth: AuthAnalysis | None = None) 
         if auth.timestamp_drift_flagged:
             score += 10
             findings.append("Timestamp drift detected")
-        # Aggregate any additional auth findings
         for finding in auth.findings:
             if finding not in findings:
                 findings.append(finding)
@@ -157,6 +157,51 @@ def score_headers(headers: HeaderInfo) -> CategoryScore:
         category="headers",
         score=min(score, 100),
         findings=findings or ["Headers appear normal"],
+    )
+
+
+def score_urls(urls: list[URLAnalysis]) -> CategoryScore:
+    """Score URL risk based on extracted and analyzed URLs."""
+    score = 0
+    findings: list[str] = []
+
+    if not urls:
+        return CategoryScore(
+            category="urls",
+            score=0,
+            findings=["No URLs found in email"],
+        )
+
+    for u in urls:
+        if u.is_homograph:
+            score += 40
+            findings.append(f"IDN homograph attack: {u.url}")
+        if u.is_shortened:
+            score += 25
+            findings.append(f"Shortened URL: {u.url}")
+        if u.suspicious_tld:
+            score += 30
+            findings.append(f"Suspicious TLD: {u.domain}.{u.tld}")
+        if u.raw_ip:
+            score += 35
+            findings.append(f"Raw IP URL: {u.url}")
+        if u.dga_suspected:
+            score += 20
+            findings.append(f"High entropy domain (possible DGA): {u.domain}")
+        if u.ssl and u.ssl.expired:
+            score += 15
+            findings.append(f"Expired SSL certificate: {u.domain}")
+        if u.whois and u.whois.newly_registered:
+            score += 25
+            findings.append(f"Newly registered domain (<30 days): {u.domain}")
+        if u.is_defanged:
+            score += 10
+            findings.append(f"Defanged URL detected: {u.url}")
+
+    return CategoryScore(
+        category="urls",
+        score=min(score, 100),
+        findings=findings or ["No suspicious URLs detected"],
     )
 
 

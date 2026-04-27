@@ -8,6 +8,7 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 from phishhawk.auth_models import AuthAnalysis
+from phishhawk.url_models import URLAnalysis
 
 
 class RiskLevel(str, Enum):
@@ -99,19 +100,6 @@ class RiskScore(BaseModel):
     categories: list[CategoryScore] = Field(default_factory=list)
 
 
-class URLInfo(BaseModel):
-    """URL analysis findings."""
-
-    url: str
-    final_url: str | None = None
-    redirect_chain: list[str] = Field(default_factory=list)
-    is_shortened: bool = False
-    is_homograph: bool = False
-    suspicious_tld: bool = False
-    raw_ip: bool = False
-    domain_entropy: float | None = None
-
-
 class IOCs(BaseModel):
     """Extracted indicators of compromise."""
 
@@ -134,7 +122,7 @@ class EmailAnalysis(BaseModel):
     risk: RiskScore = Field(default_factory=RiskScore)
     headers: HeaderInfo = Field(default_factory=HeaderInfo)
     authentication: AuthAnalysis | None = None
-    urls: list[URLInfo] = Field(default_factory=list)
+    urls: list[URLAnalysis] = Field(default_factory=list)
     attachments: list[AttachmentInfo] = Field(default_factory=list)
     iocs: IOCs = Field(default_factory=IOCs)
     mitre: list[str] = Field(default_factory=list)

@@ -34,14 +34,14 @@ dependencies = [
     "filetype>=1.2.0",
     "dnspython>=2.4.0",
     "checkdmarc>=5.0.0",
+    "tldextract>=5.0.0",
+    "requests>=2.31.0",
 ]
 
 [project.optional-dependencies]
 msg = ["extract-msg>=0.50.0"]
 all = [
     "extract-msg>=0.50.0",
-    "requests>=2.31.0",
-    "tldextract>=5.0.0",
     "yara-python>=4.5.0",
     "oletools>=0.60.0",
     "pdfplumber>=0.11.0",

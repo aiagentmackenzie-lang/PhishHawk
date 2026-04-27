@@ -109,6 +109,36 @@ def render_terminal(analysis: EmailAnalysis) -> None:
                 )
             )
 
+    # URLs panel (Phase 3)
+    if analysis.urls:
+        url_table = Table(title="URLs")
+        url_table.add_column("URL")
+        url_table.add_column("Flags", style="dim")
+        for u in analysis.urls:
+            flags: list[str] = []
+            style = "white"
+            if u.is_homograph:
+                flags.append("[red]homograph[/red]")
+                style = "red"
+            if u.is_shortened:
+                flags.append("[yellow]shortened[/yellow]")
+            if u.suspicious_tld:
+                flags.append("[yellow]suspicious-TLD[/yellow]")
+            if u.raw_ip:
+                flags.append("[red]raw-IP[/red]")
+                style = "red"
+            if u.dga_suspected:
+                flags.append("[yellow]DGA[/yellow]")
+            if u.is_defanged:
+                flags.append("[cyan]defanged[/cyan]")
+            if u.whois and u.whois.newly_registered:
+                flags.append("[yellow]new-domain[/yellow]")
+            if not flags:
+                flags.append("[green]clean[/green]")
+            display_url = u.url[:60] + "..." if len(u.url) > 60 else u.url
+            url_table.add_row(f"[{style}]{display_url}[/{style}]", " ".join(flags))
+        console.print(url_table)
+
     # Attachments table
     if analysis.attachments:
         att_table = Table(title="Attachments")
