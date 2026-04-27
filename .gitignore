@@ -152,3 +152,7 @@ cython_debug/
 *.mbox
 samples/
 iocs/
+
+# Internal docs (not for public repo)
+docs/HANDOVER_*.md
+docs/SYSTEM_REQUIREMENTS.md

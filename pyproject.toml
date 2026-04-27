@@ -61,9 +61,9 @@ dev = [
 phishhawk = "phishhawk.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/raphael/phishhawk"
-Repository = "https://github.com/raphael/phishhawk"
-Documentation = "https://github.com/raphael/phishhawk#readme"
+Homepage = "https://github.com/aiagentmackenzie-lang/PhishHawk"
+Repository = "https://github.com/aiagentmackenzie-lang/PhishHawk"
+Documentation = "https://github.com/aiagentmackenzie-lang/PhishHawk#readme"
 
 [tool.setuptools.packages.find]
 where = ["src"]
