@@ -229,13 +229,13 @@ def analyze_whois(domain: str) -> WHOISInfo | None:
         w = whois.whois(domain)
         info = WHOISInfo()
         if getattr(w, "creation_date", None):
-            from datetime import datetime
+            from datetime import datetime, timezone
             created = w.creation_date
             if isinstance(created, list):
                 created = created[0]
             if isinstance(created, datetime):
                 info.created = created.isoformat()
-                age = (datetime.utcnow() - created).days
+                age = (datetime.now(timezone.utc) - created).days
                 info.domain_age_days = age
                 info.newly_registered = age < 30
         if getattr(w, "registrar", None):

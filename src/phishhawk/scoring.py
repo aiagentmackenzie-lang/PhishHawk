@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from phishhawk.attachment_models import AttachmentForensics
 from phishhawk.auth_models import AuthAnalysis
-from phishhawk.models import CategoryScore, HeaderInfo, ParsedEmail, RiskLevel, RiskScore
+from phishhawk.models import CategoryScore, HeaderInfo, IOCs, ParsedEmail, RiskLevel, RiskScore
 from phishhawk.url_models import URLAnalysis
 
 SUSPICIOUS_DISPLAY_NAMES = {
@@ -30,6 +30,7 @@ def score_email(
     auth: AuthAnalysis | None = None,
     urls: list[URLAnalysis] | None = None,
     forensics: list[AttachmentForensics] | None = None,
+    iocs: IOCs | None = None,
 ) -> RiskScore:
     """Run all scoring modules and return aggregate risk."""
     categories: list[CategoryScore] = [
@@ -37,7 +38,7 @@ def score_email(
         score_attachments(parsed.attachments, forensics or []),
         score_headers(parsed.headers),
         score_urls(urls or []),
-        CategoryScore(category="iocs", score=0, findings=["IOC extraction: Phase 5"]),
+        score_iocs(iocs or IOCs()),
     ]
 
     total = sum(c.score for c in categories) // max(len(categories), 1)
@@ -234,6 +235,40 @@ def score_urls(urls: list[URLAnalysis]) -> CategoryScore:
         category="urls",
         score=min(score, 100),
         findings=findings or ["No suspicious URLs detected"],
+    )
+
+
+def score_iocs(iocs: IOCs) -> CategoryScore:
+    """Score IOC extraction richness and suspiciousness."""
+    score = 0
+    findings: list[str] = []
+
+    if iocs.ipv4:
+        findings.append(f"IPv4 addresses found: {len(iocs.ipv4)}")
+        score += min(len(iocs.ipv4) * 5, 20)
+    if iocs.ipv6:
+        findings.append(f"IPv6 addresses found: {len(iocs.ipv6)}")
+        score += min(len(iocs.ipv6) * 5, 20)
+    if iocs.domains:
+        findings.append(f"Domains found: {len(iocs.domains)}")
+        score += min(len(iocs.domains) * 2, 15)
+    if iocs.urls:
+        findings.append(f"URLs found: {len(iocs.urls)}")
+        score += min(len(iocs.urls) * 3, 20)
+    if iocs.emails:
+        findings.append(f"Email addresses found: {len(iocs.emails)}")
+        score += min(len(iocs.emails) * 2, 10)
+    if iocs.file_hashes:
+        findings.append(f"File hashes found: {len(iocs.file_hashes)}")
+        score += min(len(iocs.file_hashes) * 5, 20)
+    if iocs.crypto_addresses:
+        findings.append(f"Cryptocurrency addresses found: {len(iocs.crypto_addresses)}")
+        score += 30  # Very suspicious in email context
+
+    return CategoryScore(
+        category="iocs",
+        score=min(score, 100),
+        findings=findings or ["No IOCs extracted"],
     )
 
 

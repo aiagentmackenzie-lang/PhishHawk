@@ -84,7 +84,7 @@ def validate_spf(domain: str) -> SPFResult:
     try:
         import checkdmarc
 
-        check = checkdmarc.test_spf(domain)
+        check = checkdmarc.check_spf(domain)
         result.record = check.get("record", "")
         result.valid = check.get("valid", False)
         if "warnings" in check:
@@ -103,12 +103,33 @@ def validate_dmarc(domain: str) -> DMARCResult:
     try:
         import checkdmarc
 
-        check = checkdmarc.test_dmarc(domain)
+        check = checkdmarc.check_dmarc(domain)
+        # check_dmarc returns DMARCResults (dict-like) or DMARCErrorResults
         record = check.get("record", "")
         result.record = record
         result.valid = check.get("valid", False)
-        # parse policy, pct, rua, ruf from record string
-        if record:
+        # parse policy, pct, rua, ruf from record or tags
+        tags = check.get("tags", {})
+        if tags and isinstance(tags, dict):
+            # New API: tags dict has structured info
+            p_tag = tags.get("p", {})
+            if isinstance(p_tag, dict):
+                result.policy = p_tag.get("value", "")
+            else:
+                result.policy = str(p_tag)
+            pct_tag = tags.get("pct", {})
+            if isinstance(pct_tag, dict):
+                result.pct = pct_tag.get("value", 100)
+            elif isinstance(pct_tag, int):
+                result.pct = pct_tag
+            rua_tag = tags.get("rua", {})
+            if isinstance(rua_tag, dict):
+                result.rua = rua_tag.get("value", "")
+            ruf_tag = tags.get("ruf", {})
+            if isinstance(ruf_tag, dict):
+                result.ruf = ruf_tag.get("value", "")
+        elif record:
+            # Fallback: parse from record string
             m = re.search(r"p=(\w+)", record)
             if m:
                 result.policy = m.group(1).lower()
@@ -133,23 +154,33 @@ def validate_dmarc(domain: str) -> DMARCResult:
 
 
 def validate_dkim(domain: str, selectors: list[str] | None = None) -> list[DKIMSelectorResult]:
-    """Probe DKIM selectors for a domain."""
+    """Probe DKIM selectors for a domain via direct DNS lookup.
+
+    The checkdmarc library removed test_dkim in v5.x.
+    We fall back to querying _selector._domainkey.domain TXT records.
+    """
     if selectors is None:
         selectors = COMMON_DKIM_SELECTORS
     results: list[DKIMSelectorResult] = []
     for selector in selectors:
         r = DKIMSelectorResult(selector=selector)
         try:
-            import checkdmarc
-
-            check = checkdmarc.test_dkim(domain, selector)
-            r.domain = domain
-            r.record = check.get("record", "")
-            r.valid = check.get("valid", False)
-            if "warnings" in check:
-                r.warnings.extend(check["warnings"])
-            if "errors" in check:
-                r.errors.extend(check["errors"])
+            lookup = f"{selector}._domainkey.{domain}"
+            answers = dns.resolver.resolve(lookup, "TXT")
+            txt_parts: list[str] = []
+            for rr in answers:
+                for txt in rr.strings:
+                    txt_parts.append(txt.decode("utf-8", errors="replace") if isinstance(txt, bytes) else txt)
+            record = " ".join(txt_parts)
+            if record:
+                r.domain = domain
+                r.record = record
+                r.valid = "v=DKIM1" in record or "k=rsa" in record or "k=ed25519" in record
+        except dns.resolver.NXDOMAIN:
+            # Selector doesn't exist — normal, skip silently
+            pass
+        except dns.resolver.NoAnswer:
+            pass
         except Exception as exc:
             r.dns_available = False
             r.errors.append(str(exc))

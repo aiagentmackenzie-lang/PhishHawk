@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 from phishhawk.attachment_models import AttachmentForensics
 from phishhawk.auth_models import AuthAnalysis
@@ -113,6 +113,20 @@ class IOCs(BaseModel):
     urls: list[str] = Field(default_factory=list)
     emails: list[str] = Field(default_factory=list)
     file_hashes: list[str] = Field(default_factory=list)
+    crypto_addresses: list[str] = Field(default_factory=list)
+
+    @computed_field
+    @property
+    def total_count(self) -> int:
+        return (
+            len(self.ipv4)
+            + len(self.ipv6)
+            + len(self.domains)
+            + len(self.urls)
+            + len(self.emails)
+            + len(self.file_hashes)
+            + len(self.crypto_addresses)
+        )
 
 
 class EmailAnalysis(BaseModel):
@@ -120,7 +134,7 @@ class EmailAnalysis(BaseModel):
 
     schema_version: str = "1.0.0"
     tool: str = "PhishHawk"
-    analysis_timestamp: datetime = Field(default_factory=datetime.utcnow)
+    analysis_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     file: str
     file_hash: str | None = None
     risk: RiskScore = Field(default_factory=RiskScore)

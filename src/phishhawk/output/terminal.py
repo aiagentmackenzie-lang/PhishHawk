@@ -188,6 +188,33 @@ def render_terminal(analysis: EmailAnalysis) -> None:
                 )
             )
 
+    # IOCs panel (Phase 5)
+    iocs = analysis.iocs
+    if iocs.total_count > 0:
+        ioc_lines: list[str] = []
+        if iocs.ipv4:
+            ioc_lines.append(f"[bold]IPv4:[/bold] {', '.join(iocs.ipv4[:5])}")
+        if iocs.ipv6:
+            ioc_lines.append(f"[bold]IPv6:[/bold] {', '.join(iocs.ipv6[:5])}")
+        if iocs.domains:
+            ioc_lines.append(f"[bold]Domains:[/bold] {', '.join(iocs.domains[:5])}")
+        if iocs.urls:
+            ioc_lines.append(f"[bold]URLs:[/bold] {', '.join(iocs.urls[:3])}")
+        if iocs.emails:
+            ioc_lines.append(f"[bold]Emails:[/bold] {', '.join(iocs.emails[:3])}")
+        if iocs.file_hashes:
+            ioc_lines.append(f"[bold]Hashes:[/bold] {', '.join(iocs.file_hashes[:3])}")
+        if iocs.crypto_addresses:
+            ioc_lines.append(f"[bold red]Crypto:[/bold red] {', '.join(iocs.crypto_addresses[:3])}")
+        if ioc_lines:
+            console.print(
+                Panel(
+                    "\n".join(ioc_lines),
+                    title="[bold]IOCs[/bold]",
+                    border_style="magenta",
+                )
+            )
+
     # MITRE mapping
     if analysis.mitre:
         console.print(
