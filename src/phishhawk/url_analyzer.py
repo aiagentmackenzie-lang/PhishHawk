@@ -218,7 +218,6 @@ def analyze_ssl(url: str, timeout: int = 10) -> SSLInfo | None:
             )
     except Exception:
         return None
-        return None
 
 
 def analyze_whois(domain: str) -> WHOISInfo | None:

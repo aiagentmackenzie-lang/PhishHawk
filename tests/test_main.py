@@ -34,3 +34,11 @@ def test_init_version() -> None:
     """Package should be importable."""
     import phishhawk
     assert phishhawk.__version__ is not None or hasattr(phishhawk, "__version__") or True
+
+
+def test_main_module_execution() -> None:
+    """python -m phishhawk should invoke app."""
+    # The __main__.py just imports app and calls it
+    # We can verify it by checking the module structure
+    import phishhawk.__main__
+    assert hasattr(phishhawk.__main__, 'app')

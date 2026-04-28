@@ -17,12 +17,9 @@ def _now() -> str:
 
 
 def _uuid() -> str:
-    """Deterministic UUID based on analysis file & timestamp."""
-    import hashlib
-
-    ts = datetime.now(timezone.utc).isoformat()
-    digest = hashlib.md5(f"phishhawk-{ts}".encode()).hexdigest()
-    return f"{digest[:8]}-{digest[8:12]}-{digest[12:16]}-{digest[16:20]}-{digest[20:]}"
+    """Generate RFC 4122 compliant UUID."""
+    import uuid
+    return str(uuid.uuid4())
 
 
 def _ioc_to_misp_attr(ioc_type: str, value: str, category: str = "Network activity") -> dict:

@@ -34,7 +34,7 @@ jobs:
           python -m pytest tests/ -v \
             -W error::DeprecationWarning \
             --cov=src/phishhawk \
-            --cov-fail-under=75
+            --cov-fail-under=90
 
   docker:
     runs-on: ubuntu-latest

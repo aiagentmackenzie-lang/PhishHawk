@@ -225,3 +225,86 @@ def export_markdown(analysis: EmailAnalysis, outfile: str | None = None) -> str:
     if outfile:
         Path(outfile).write_text(md)
     return md
+
+
+def _build_diff(a1: EmailAnalysis, a2: EmailAnalysis) -> dict:
+    """Build a structured diff dict for two analyses."""
+    def _set(items):
+        return set(items)
+
+    return {
+        "risk_delta": a2.risk.total - a1.risk.total,
+        "subject_match": (a1.headers.subject or "") == (a2.headers.subject or ""),
+        "from_match": (a1.headers.from_address or "") == (a2.headers.from_address or ""),
+        "shared_urls": list(_set(u.url for u in a1.urls) & _set(u.url for u in a2.urls)),
+        "unique_urls_file1": list(_set(u.url for u in a1.urls) - _set(u.url for u in a2.urls)),
+        "unique_urls_file2": list(_set(u.url for u in a2.urls) - _set(u.url for u in a1.urls)),
+        "shared_domains": list(_set(a1.iocs.domains) & _set(a2.iocs.domains)),
+        "unique_domains_file1": list(_set(a1.iocs.domains) - _set(a2.iocs.domains)),
+        "unique_domains_file2": list(_set(a2.iocs.domains) - _set(a1.iocs.domains)),
+        "shared_attachments": list(
+            _set(a.sha256 for a in a1.attachments if a.sha256)
+            & _set(a.sha256 for a in a2.attachments if a.sha256)
+        ),
+        "shared_mitre": list(_set(a1.mitre) & _set(a2.mitre)),
+        "shared_emails": list(_set(a1.iocs.emails) & _set(a2.iocs.emails)),
+    }
+
+
+def render_compare_markdown(a1: EmailAnalysis, a2: EmailAnalysis) -> str:
+    """Render a Markdown campaign comparison report for two analyses."""
+    diff = _build_diff(a1, a2)
+    check = "\u2705"
+    cross = "\u274c"
+    lines = [
+        "# PhishHawk Campaign Comparison Report\n",
+        f"| | **{Path(a1.file).name}** | **{Path(a2.file).name}** |",
+        "|---|---|---|",
+        f"| Risk Score | {a1.risk.total} | {a2.risk.total} |",
+        f"| Risk Level | {a1.risk.level.value} | {a2.risk.level.value} |",
+        f"| Delta | \u2014 | {'+' if diff['risk_delta'] > 0 else ''}{diff['risk_delta']} |",
+        f"| Subject Match | {check if diff['subject_match'] else cross} | {check if diff['subject_match'] else cross} |",
+        f"| From Match | {check if diff['from_match'] else cross} | {check if diff['from_match'] else cross} |",
+        "",
+        "## Shared URLs\n",
+    ]
+    if diff["shared_urls"]:
+        for u in diff["shared_urls"]:
+            lines.append(f"- {u}")
+    else:
+        lines.append("_None_")
+    lines.append("")
+
+    lines.append("## Unique URLs (File 1)\n")
+    if diff["unique_urls_file1"]:
+        for u in diff["unique_urls_file1"]:
+            lines.append(f"- {u}")
+    else:
+        lines.append("_None_")
+    lines.append("")
+
+    lines.append("## Unique URLs (File 2)\n")
+    if diff["unique_urls_file2"]:
+        for u in diff["unique_urls_file2"]:
+            lines.append(f"- {u}")
+    else:
+        lines.append("_None_")
+    lines.append("")
+
+    lines.append("## Shared MITRE ATT&CK Techniques\n")
+    if diff["shared_mitre"]:
+        for m in diff["shared_mitre"]:
+            lines.append(f"- {m}")
+    else:
+        lines.append("_None_")
+    lines.append("")
+
+    lines.append("## Shared Attachment Hashes\n")
+    if diff["shared_attachments"]:
+        for h in diff["shared_attachments"]:
+            lines.append(f"- `{h}`")
+    else:
+        lines.append("_None_")
+    lines.append("")
+
+    return "\n".join(lines)

@@ -127,7 +127,6 @@ class PhishHawkConfig:
     def load(cls, user_path: Path | None = None) -> PhishHawkConfig:
         """Load config from defaults → system → user → env."""
         config: dict = copy.deepcopy(_DEFAULTS)
-        config = _deep_merge(config, _DEFAULTS)
 
         # System config
         sys_path = Path("/etc/phishhawk/config.toml")

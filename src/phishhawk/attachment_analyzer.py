@@ -233,7 +233,7 @@ def analyze_attachment(
     ext = Path(att.filename).suffix.lower()
 
     # Office macro analysis
-    if ext in {".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".dotm", ".xlsm", ".pptm"}:
+    if ext in {".doc", ".docx", ".docm", ".xls", ".xlsx", ".xlsm", ".ppt", ".pptx", ".pptm", ".dotm"}:
         office = analyze_office_macros(att, payload)
         analysis["office_macros"] = office
         if office.get("has_macros"):

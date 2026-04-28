@@ -13,7 +13,7 @@ from phishhawk.config import get_config
 from phishhawk.engine import run_analysis
 from phishhawk.models import EmailAnalysis
 from phishhawk.output.json_out import export_json, export_ndjson
-from phishhawk.output.markdown_out import export_markdown
+from phishhawk.output.markdown_out import export_markdown, render_compare_markdown
 from phishhawk.output.stix_out import export_misp_json, export_stix_json
 from phishhawk.output.terminal import render_terminal
 
@@ -126,7 +126,6 @@ def batch(
             f"[green]Wrote {len(analyses)} analysis(es) to {outfile}[/green]"
         )
     else:
-        # JSON array
         import json as _json
 
         arr = [a.model_dump(mode="json", exclude_none=False) for a in analyses]
@@ -162,6 +161,8 @@ def compare(
     if output == "json":
         import json as _json
 
+        from phishhawk.output.markdown_out import _build_diff
+
         result = {
             "campaign_comparison": {
                 "file1": analysis1.model_dump(mode="json"),
@@ -174,7 +175,7 @@ def compare(
             Path(outfile).write_text(text)
         console.print(text)
     elif output == "markdown":
-        md = _render_compare_markdown(analysis1, analysis2)
+        md = render_compare_markdown(analysis1, analysis2)
         if outfile:
             Path(outfile).write_text(md)
         console.print(md)
@@ -182,43 +183,20 @@ def compare(
         _render_compare_terminal(analysis1, analysis2)
 
 
-def _build_diff(a1: EmailAnalysis, a2: EmailAnalysis) -> dict:
-    """Build a structured diff dict for two analyses."""
-    def _set(items):
-        return set(items)
-
-    return {
-        "risk_delta": a2.risk.total - a1.risk.total,
-        "subject_match": (a1.headers.subject or "") == (a2.headers.subject or ""),
-        "from_match": (a1.headers.from_address or "") == (a2.headers.from_address or ""),
-        "shared_urls": list(_set(u.url for u in a1.urls) & _set(u.url for u in a2.urls)),
-        "unique_urls_file1": list(_set(u.url for u in a1.urls) - _set(u.url for u in a2.urls)),
-        "unique_urls_file2": list(_set(u.url for u in a2.urls) - _set(u.url for u in a1.urls)),
-        "shared_domains": list(_set(a1.iocs.domains) & _set(a2.iocs.domains)),
-        "unique_domains_file1": list(_set(a1.iocs.domains) - _set(a2.iocs.domains)),
-        "unique_domains_file2": list(_set(a2.iocs.domains) - _set(a1.iocs.domains)),
-        "shared_attachments": list(
-            _set(a.sha256 for a in a1.attachments if a.sha256)
-            & _set(a.sha256 for a in a2.attachments if a.sha256)
-        ),
-        "shared_mitre": list(_set(a1.mitre) & _set(a2.mitre)),
-        "shared_emails": list(_set(a1.iocs.emails) & _set(a2.iocs.emails)),
-    }
-
-
 def _render_compare_terminal(a1: EmailAnalysis, a2: EmailAnalysis) -> None:
+    from phishhawk.output.markdown_out import _build_diff
+
     diff = _build_diff(a1, a2)
 
     console.print(
         Panel.fit(
             "[bold blue]PhishHawk[/bold blue]  —  Campaign Comparison\n"
             f"[dim]{Path(a1.file).name}  vs  {Path(a2.file).name}[/dim]",
-            title="🔍",
+            title="\U0001f50d",
             border_style="blue",
         )
     )
 
-    # Risk comparison
     risk_table = Table(title="Risk Comparison")
     risk_table.add_column("Metric")
     risk_table.add_column(a1.file, justify="right")
@@ -232,87 +210,25 @@ def _render_compare_terminal(a1: EmailAnalysis, a2: EmailAnalysis) -> None:
     )
     console.print(risk_table)
 
-    # Subject / From
     meta_table = Table(title="Metadata")
     meta_table.add_column("Field")
     meta_table.add_column("Match")
-    meta_table.add_row("Subject", "✅" if diff["subject_match"] else "❌")
-    meta_table.add_row("From", "✅" if diff["from_match"] else "❌")
+    meta_table.add_row("Subject", "\u2705" if diff["subject_match"] else "\u274c")
+    meta_table.add_row("From", "\u2705" if diff["from_match"] else "\u274c")
     console.print(meta_table)
 
-    # Shared / Unique IOCs
     console.print(f"\n[bold]Shared URLs:[/bold] {len(diff['shared_urls'])}")
     for u in diff["shared_urls"][:5]:
-        console.print(f"  • {u}")
+        console.print(f"  \u2022 {u}")
     console.print(f"\n[bold]Unique URLs (file 1):[/bold] {len(diff['unique_urls_file1'])}")
     for u in diff["unique_urls_file1"][:5]:
-        console.print(f"  • {u}")
+        console.print(f"  \u2022 {u}")
     console.print(f"\n[bold]Unique URLs (file 2):[/bold] {len(diff['unique_urls_file2'])}")
     for u in diff["unique_urls_file2"][:5]:
-        console.print(f"  • {u}")
+        console.print(f"  \u2022 {u}")
 
     console.print(f"\n[bold]Shared MITRE:[/bold] {', '.join(diff['shared_mitre']) or 'None'}")
     console.print(f"[bold]Shared Attachment Hashes:[/bold] {len(diff['shared_attachments'])}")
-
-
-def _render_compare_markdown(a1: EmailAnalysis, a2: EmailAnalysis) -> str:
-    diff = _build_diff(a1, a2)
-    lines = [
-        "# PhishHawk Campaign Comparison Report\n",
-        f"| | **{Path(a1.file).name}** | **{Path(a2.file).name}** |",
-        "|---|---|---|",
-        f"| Risk Score | {a1.risk.total} | {a2.risk.total} |",
-        f"| Risk Level | {a1.risk.level.value} | {a2.risk.level.value} |",
-        f"| Delta | — | {'+' if diff['risk_delta'] > 0 else ''}{diff['risk_delta']} |",
-        f"| Subject Match | {'✅' if diff['subject_match'] else '❌'} | {'✅' if diff['subject_match'] else '❌'} |",
-        f"| From Match | {'✅' if diff['from_match'] else '❌'} | {'✅' if diff['from_match'] else '❌'} |",
-        "",
-        "## Shared URLs\n",
-    ]
-    if diff["shared_urls"]:
-        for u in diff["shared_urls"]:
-            lines.append(f"- {u}")
-    else:
-        lines.append("_None_")
-    lines.append("")
-
-    lines.append("## Unique URLs (File 1)\n")
-    if diff["unique_urls_file1"]:
-        for u in diff["unique_urls_file1"]:
-            lines.append(f"- {u}")
-    else:
-        lines.append("_None_")
-    lines.append("")
-
-    lines.append("## Unique URLs (File 2)\n")
-    if diff["unique_urls_file2"]:
-        for u in diff["unique_urls_file2"]:
-            lines.append(f"- {u}")
-    else:
-        lines.append("_None_")
-    lines.append("")
-
-    lines.append("## Shared MITRE ATT&CK Techniques\n")
-    if diff["shared_mitre"]:
-        for m in diff["shared_mitre"]:
-            lines.append(f"- {m}")
-    else:
-        lines.append("_None_")
-    lines.append("")
-
-    lines.append("## Shared Attachment Hashes\n")
-    if diff["shared_attachments"]:
-        for h in diff["shared_attachments"]:
-            lines.append(f"- `{h}`")
-    else:
-        lines.append("_None_")
-    lines.append("")
-
-    return "\n".join(lines)
-
-
-if __name__ == "__main__":
-    app()
 
 
 @app.command()
@@ -365,3 +281,7 @@ selectors = ["default", "google", "selector1", "selector2"]
         for k, v in cfg.__dict__.items():
             table.add_row(k, str(v))
         console.print(table)
+
+
+if __name__ == "__main__":
+    app()
