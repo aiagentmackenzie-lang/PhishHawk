@@ -157,3 +157,5 @@ iocs/
 # Internal docs (not for public repo)
 docs/HANDOVER_*.md
 docs/SYSTEM_REQUIREMENTS.md
+BUG_LOG.md
+CHANGELOG.md
