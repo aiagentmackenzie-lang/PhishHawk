@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from phishhawk.mitre import get_mitre_details
 from phishhawk.models import EmailAnalysis
 
 
-def _iocs_table(iocs, bold: bool = True) -> str:
+def _iocs_table(iocs: list[str], bold: bool = True) -> str:
     """Build a markdown table for a list of strings."""
     if not iocs:
         return "_None detected_\n\n"
@@ -151,23 +153,23 @@ def export_markdown(analysis: EmailAnalysis, outfile: str | None = None) -> str:
         lines.append("| Filename | MIME Type | Size | Flags |")
         lines.append("|----------|-----------|------|-------|")
         for att in analysis.attachments:
-            flags: list[str] = []
+            att_flags: list[str] = []
             if att.is_dangerous:
-                flags.append("dangerous")
+                att_flags.append("dangerous")
             if att.extension_mismatch:
-                flags.append("ext-mismatch")
+                att_flags.append("ext-mismatch")
             f = next(
                 (af for af in analysis.attachment_forensics if af.filename == att.filename),
                 None,
             )
             if f:
                 if f.office_macros and f.office_macros.has_macros:
-                    flags.append("macros")
+                    att_flags.append("macros")
                 if f.pdf and f.pdf.has_js:
-                    flags.append("PDF-JS")
+                    att_flags.append("PDF-JS")
                 if f.yara and f.yara.match_count > 0:
-                    flags.append(f"YARA×{f.yara.match_count}")
-            flag_str = ", ".join(flags) if flags else "clean"
+                    att_flags.append(f"YARA×{f.yara.match_count}")
+            flag_str = ", ".join(att_flags) if att_flags else "clean"
             lines.append(f"| {att.filename} | {att.mime_type} | {att.size:,} | {flag_str} |")
         lines.append("")
 
@@ -227,9 +229,9 @@ def export_markdown(analysis: EmailAnalysis, outfile: str | None = None) -> str:
     return md
 
 
-def _build_diff(a1: EmailAnalysis, a2: EmailAnalysis) -> dict:
+def _build_diff(a1: EmailAnalysis, a2: EmailAnalysis) -> dict[str, Any]:
     """Build a structured diff dict for two analyses."""
-    def _set(items):
+    def _set(items: Iterable[str]) -> set[str]:
         return set(items)
 
     return {

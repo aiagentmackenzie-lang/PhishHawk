@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 try:
     import tomllib
@@ -73,7 +74,7 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return result
 
 
-def _load_toml(path: Path) -> dict:
+def _load_toml(path: Path) -> dict[str, Any]:
     """Load a TOML file, returning {} on failure."""
     if tomllib is None:
         return {}
@@ -81,7 +82,8 @@ def _load_toml(path: Path) -> dict:
         return {}
     try:
         with open(path, "rb") as f:
-            return tomllib.load(f)
+            data: dict[str, Any] = tomllib.load(f)
+            return data
     except Exception:
         return {}
 

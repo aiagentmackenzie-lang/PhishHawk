@@ -145,7 +145,7 @@ selectors = ["default", "google", "selector1", "selector2"]
 ## Testing
 
 ```bash
-# Run all tests (166+ tests, 81% coverage)
+# Run all tests (166+ tests, >90% coverage)
 pytest tests/ -v -W error::DeprecationWarning
 
 # With coverage
@@ -160,7 +160,7 @@ ruff check src/ tests/
 GitHub Actions runs on every push to `main` and PR:
 
 - **Lint** — ruff check
-- **Test** — Python 3.12, 3.13, 3.14 matrix, `--cov-fail-under=75`
+- **Test** — Python 3.12, 3.13, 3.14 matrix, `--cov-fail-under=90`
 - **Docker** — Build + smoke test (`phishhawk --help`)
 
 ## License

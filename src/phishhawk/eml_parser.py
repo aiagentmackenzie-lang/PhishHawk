@@ -86,7 +86,7 @@ def _safe_decode_payload(part: Any) -> str | None:
         return str(content) if content is not None else None
     except (UnicodeDecodeError, LookupError, AttributeError):
         payload = part.get_payload(decode=True)
-        if payload is None:
+        if not isinstance(payload, bytes):
             return None
         for encoding in ("utf-8", "latin-1", "cp1252"):
             try:

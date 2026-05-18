@@ -7,9 +7,10 @@ import re
 import socket
 import ssl
 import unicodedata
+from typing import Any
 from urllib.parse import urlparse
 
-import requests
+import requests  # type: ignore[import-untyped]
 import tldextract
 
 from phishhawk.url_models import SSLInfo, URLAnalysis, WHOISInfo
@@ -197,7 +198,7 @@ def analyze_ssl(url: str, timeout: int = 10) -> SSLInfo | None:
         sock = socket.create_connection((hostname, 443), timeout=timeout)
         ssock = context.wrap_socket(sock, server_hostname=hostname)
         with sock, ssock:
-            cert = ssock.getpeercert()
+            cert: dict[str, Any] = ssock.getpeercert() or {}
             cipher = ssock.cipher()
             version = ssock.version()
 

@@ -6,6 +6,7 @@ import io
 import re
 import zipfile
 from pathlib import Path
+from typing import Any
 
 from phishhawk.models import AttachmentInfo
 
@@ -33,12 +34,12 @@ DANGEROUS_EXTENSIONS: set[str] = {
 }
 
 
-def analyze_office_macros(att: AttachmentInfo, payload: bytes) -> dict[str, object]:
+def analyze_office_macros(att: AttachmentInfo, payload: bytes) -> dict[str, Any]:
     """Analyze Office document for VBA macros using oletools.
 
     Returns dict with keys: has_macros, macro_count, suspicious, vba_code_preview.
     """
-    result: dict[str, object] = {
+    result: dict[str, Any] = {
         "has_macros": False,
         "macro_count": 0,
         "suspicious": False,
@@ -86,13 +87,13 @@ def analyze_office_macros(att: AttachmentInfo, payload: bytes) -> dict[str, obje
     return result
 
 
-def analyze_pdf(att: AttachmentInfo, payload: bytes) -> dict[str, object]:
+def analyze_pdf(att: AttachmentInfo, payload: bytes) -> dict[str, Any]:
     """Analyze PDF for embedded JavaScript, URIs, suspicious objects.
 
     Returns dict with keys: has_js, has_uris, suspicious_objects_count,
     object_summary, urls_found.
     """
-    result: dict[str, object] = {
+    result: dict[str, Any] = {
         "has_js": False,
         "has_uris": False,
         "suspicious_objects_count": 0,
@@ -129,12 +130,12 @@ def analyze_pdf(att: AttachmentInfo, payload: bytes) -> dict[str, object]:
     return result
 
 
-def scan_yara(att: AttachmentInfo, payload: bytes, rules_dir: str | None = None) -> dict[str, object]:
+def scan_yara(att: AttachmentInfo, payload: bytes, rules_dir: str | None = None) -> dict[str, Any]:
     """Run YARA rules against attachment payload.
 
     Returns dict with keys: matches (list of rule names), match_count.
     """
-    result: dict[str, object] = {"matches": [], "match_count": 0, "rules_loaded": 0}
+    result: dict[str, Any] = {"matches": [], "match_count": 0, "rules_loaded": 0}
     try:
         import yara
 
@@ -213,12 +214,12 @@ def analyze_attachment(
     att: AttachmentInfo,
     payload: bytes,
     yara_rules_dir: str | None = None,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     """Run full static forensics on a single attachment.
 
     Returns aggregate analysis dict.
     """
-    analysis: dict[str, object] = {
+    analysis: dict[str, Any] = {
         "filename": att.filename,
         "sha256": att.sha256,
         "mime_type": att.mime_type,
@@ -250,13 +251,13 @@ def analyze_attachment(
             analysis["findings"].append("PDF contains embedded JavaScript")
         if pdf.get("has_uris"):
             analysis["findings"].append(f"PDF contains {len(pdf.get('urls_found', []))} embedded URL(s)")
-        if pdf.get("suspicious_objects_count", 0) > 0:
+        if pdf.get("suspicious_objects_count"):
             analysis["findings"].append(f"PDF has {pdf['suspicious_objects_count']} suspicious object(s)")
 
     # YARA scanning
     yara_result = scan_yara(att, payload, yara_rules_dir)
     analysis["yara"] = yara_result
-    if yara_result.get("match_count", 0) > 0:
+    if yara_result.get("match_count"):
         rules = ", ".join(yara_result.get("matches", [])[:5])
         analysis["findings"].append(f"YARA matches: {rules}")
 
@@ -273,7 +274,7 @@ def analyze_all_attachments(
     attachments: list[AttachmentInfo],
     raw_payload_map: dict[str, bytes],
     yara_rules_dir: str | None = None,
-) -> list[dict[str, object]]:
+) -> list[dict[str, Any]]:
     """Run forensics on all attachments."""
     results: list[dict[str, object]] = []
     for att in attachments:

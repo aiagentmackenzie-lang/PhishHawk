@@ -89,7 +89,7 @@ def analyze(
 def batch(
     directory: str = typer.Argument(..., help="Directory containing email files"),
     output: str = typer.Option(
-        "json", "--output", "-o", help="Output format: json, ndjson"
+        "ndjson", "--output", "-o", help="Output format: json, ndjson"
     ),
     outfile: str = typer.Option(
         "batch.ndjson", "--outfile", "-f", help="Output file"
@@ -173,12 +173,12 @@ def compare(
         text = _json.dumps(result, indent=2, default=str)
         if outfile:
             Path(outfile).write_text(text)
-        console.print(text)
+        print(text)
     elif output == "markdown":
         md = render_compare_markdown(analysis1, analysis2)
         if outfile:
             Path(outfile).write_text(md)
-        console.print(md)
+        print(md)
     else:
         _render_compare_terminal(analysis1, analysis2)
 

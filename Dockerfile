@@ -3,7 +3,7 @@ FROM python:3.14-slim AS builder
 WORKDIR /build
 COPY . .
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir .
+    pip install --no-cache-dir ".[all]"
 
 # --- Runtime ---
 FROM python:3.14-slim

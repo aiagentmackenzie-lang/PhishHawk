@@ -115,7 +115,7 @@ class IOCs(BaseModel):
     file_hashes: list[str] = Field(default_factory=list)
     crypto_addresses: list[str] = Field(default_factory=list)
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def total_count(self) -> int:
         return (

@@ -19,6 +19,7 @@ def _now() -> str:
 def _uuid() -> str:
     """Generate RFC 4122 compliant UUID."""
     import uuid
+
     return str(uuid.uuid4())
 
 
@@ -59,7 +60,7 @@ def export_misp(analysis: EmailAnalysis) -> dict:
             "threat_level_id": "1" if analysis.risk.level.value in ("HIGH", "CRITICAL") else "2",
             "analysis": "2",
             "distribution": "0",
-            "timestamp": analysis.analysis_timestamp.strftime("%s"),
+            "timestamp": str(int(analysis.analysis_timestamp.timestamp())),
             "date": analysis.analysis_timestamp.strftime("%Y-%m-%d"),
             "Attribute": attributes,
             "Tag": [
@@ -76,7 +77,7 @@ def export_stix(analysis: EmailAnalysis) -> dict:
     indicators: list[dict] = []
     seen: set[str] = set()
 
-    def _indicator(pattern: str, pattern_type: str, labels: list[str]) -> dict:
+    def _indicator(pattern: str, pattern_type: str, labels: list[str]) -> dict | None:
         key = f"{pattern_type}:{pattern}"
         if key in seen:
             return None
@@ -99,28 +100,28 @@ def export_stix(analysis: EmailAnalysis) -> dict:
 
     for ip in analysis.iocs.ipv4:
         ind = _indicator(f"[ipv4-addr:value = '{ip}']", "ipv4-addr", ["malicious-activity"])
-        if ind:
+        if ind is not None:
             indicators.append(ind)
     for ip in analysis.iocs.ipv6:
         ind = _indicator(f"[ipv6-addr:value = '{ip}']", "ipv6-addr", ["malicious-activity"])
-        if ind:
+        if ind is not None:
             indicators.append(ind)
     for domain in analysis.iocs.domains:
         ind = _indicator(f"[domain-name:value = '{domain}']", "domain-name", ["malicious-activity"])
-        if ind:
+        if ind is not None:
             indicators.append(ind)
     for url in analysis.iocs.urls:
         ind = _indicator(f"[url:value = '{url}']", "url", ["malicious-activity"])
-        if ind:
+        if ind is not None:
             indicators.append(ind)
     for email in analysis.iocs.emails:
         ind = _indicator(f"[email-addr:value = '{email}']", "email-addr", ["malicious-activity"])
-        if ind:
+        if ind is not None:
             indicators.append(ind)
     for h in analysis.iocs.file_hashes:
         hash_type = "SHA-256" if len(h) == 64 else "SHA-1" if len(h) == 40 else "MD5"
         ind = _indicator(f"[file:hashes.{hash_type} = '{h}']", "file", ["malicious-activity"])
-        if ind:
+        if ind is not None:
             indicators.append(ind)
 
     bundle = {
