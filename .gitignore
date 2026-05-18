@@ -152,6 +152,7 @@ cython_debug/
 *.mbox
 samples/
 iocs/
+!tests/fixtures/*.eml  # synthetic test fixtures must be committed for CI
 
 # Internal docs (not for public repo)
 docs/HANDOVER_*.md

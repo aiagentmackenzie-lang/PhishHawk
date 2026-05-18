@@ -1,0 +1,50 @@
+From: "Amazon" <security@amaz0n-security.com>
+To: <victim@example.com>
+Subject: Urgent: Verify Your Account Now
+Reply-To: <support@gmail.com>
+Return-Path: <bounce@evil.com>
+Date: Mon, 25 Apr 2026 08:30:00 +0000
+Message-ID: <abc123@evil.com>
+Authentication-Results: mx.google.com;
+       spf=fail (google.com: domain of security@amaz0n-security.com does not designate 192.168.1.100 as permitted sender) smtp.mailfrom=security@amaz0n-security.com;
+       dkim=fail header.i=@amaz0n-security.com header.s=default header.b=bad;
+       dmarc=fail (p=REJECT) header.from=amaz0n-security.com
+Received: from mail.evil.com (mail.evil.com [192.168.1.100])
+	by mx.google.com with ESMTPS id abc123.2026.04.25.08.30.00
+	for <victim@example.com>
+	(version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256);
+	Mon, 25 Apr 2026 08:30:00 +0000
+Received: from localhost (localhost [127.0.0.1])
+	by mail.evil.com with ESMTP id xyz789;
+	Mon, 25 Apr 2026 08:29:00 +0000
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="boundary123"
+
+--boundary123
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Dear Customer,
+
+Please click the link below to verify your account:
+https://micros0ft-login.com/verify
+
+Thank you,
+Amazon Security Team
+--boundary123
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+<html><body>
+<p>Dear Customer,</p>
+<p>Please <a href="https://micros0ft-login.com/verify">click here</a> to verify.</p>
+</body></html>
+--boundary123
+Content-Type: application/octet-stream; name="invoice.exe"
+Content-Disposition: attachment; filename="invoice.exe"
+Content-Transfer-Encoding: base64
+
+TVqQAAMAAAAEAAAA//8AALgAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAA4AAAAA4fug4AtAnNIbgBTM0hVGhpcyBwcm9ncmFtIGNhbm5vdCBiZSBydW4gaW4gRE9TIG1vZGUu
+DQ0KJAAAAAAAAADbgZwJ
+--boundary123--
