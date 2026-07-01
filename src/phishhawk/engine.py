@@ -11,6 +11,7 @@ from phishhawk.attachment_analyzer import analyze_all_attachments
 from phishhawk.attachment_models import AttachmentForensics
 from phishhawk.auth import analyze_authentication
 from phishhawk.config import get_config
+from phishhawk.hatchery_bridge import detonate_attachments as detonate_in_hatchery
 from phishhawk.iocs import extract_iocs
 from phishhawk.mitre import build_recommendations, map_findings_to_mitre
 from phishhawk.models import EmailAnalysis
@@ -75,12 +76,29 @@ def run_analysis(
             if isinstance(fr, dict)
             else fr
         )
-
-        if detonate_attachments:
-            f.hatchery = {"status": "unavailable", "note": "HATCHERY not yet running"}
-            f.findings.append("HATCHERY: unavailable — sandbox not yet running")
-
         forensics.append(f)
+
+    if detonate_attachments and forensics:
+        hatchery_results = detonate_in_hatchery(parsed.attachments, parsed.raw_payloads)
+        result_by_filename = {r.get("filename"): r for r in hatchery_results}
+        for f in forensics:
+            result = result_by_filename.get(f.filename)
+            if result is None:
+                f.hatchery = {"status": "unavailable", "note": "HATCHERY not yet running"}
+                f.findings.append("HATCHERY: unavailable — sandbox not yet running")
+            else:
+                f.hatchery = result
+                status = result.get("status")
+                if status == "submitted":
+                    f.findings.append(
+                        f"HATCHERY submitted: {f.filename} (task {result.get('task_id', 'unknown')})"
+                    )
+                elif status == "failed":
+                    f.findings.append(
+                        f"HATCHERY: {result.get('error', 'submission failed')}"
+                    )
+                else:
+                    f.findings.append("HATCHERY: unavailable — sandbox not yet running")
 
     # IOC extraction
     iocs = extract_iocs(parsed)

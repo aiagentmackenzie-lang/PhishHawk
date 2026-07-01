@@ -264,7 +264,7 @@ def analyze_attachment(
     # Archive extraction
     archive = extract_archive(payload, att.filename)
     if archive:
-        analysis["archive_extracted"] = archive
+        analysis["archive_extracted"] = [a.model_dump() for a in archive]
         analysis["findings"].append(f"ZIP archive extracted: {len(archive)} file(s)")
 
     return analysis

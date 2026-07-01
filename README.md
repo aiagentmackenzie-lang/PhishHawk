@@ -24,9 +24,13 @@ PhishHawk ingests email files (`.eml`, `.msg`, `.mbox`), performs deep header au
 
 ```bash
 # Clone and install
+# 'dev' gives the CLI, tests, and lint tools.
+# Install '.[all]' if you need .msg parsing, Office macro/PDF/YARA forensics,
+# and WHOIS enrichment (recommended for a full forensic install).
 git clone https://github.com/aiagentmackenzie-lang/PhishHawk.git
 cd PhishHawk
 pip install -e ".[dev]"
+# pip install -e ".[all]"   # full optional dependencies
 
 # Analyze a single email (terminal output)
 phishhawk analyze suspicious.eml
@@ -44,6 +48,8 @@ phishhawk analyze suspicious.eml -o misp
 phishhawk analyze suspicious.eml -o markdown -f report.md
 
 # With sandbox URL analysis and attachment detonation
+# Note: --detonate-attachments submits to a running HATCHERY sandbox.
+# Note: WHOIS lookups need python-whois (install with .[all]).
 phishhawk analyze suspicious.eml --sandbox-urls --detonate-attachments
 
 # Batch analysis (NDJSON)
@@ -73,6 +79,24 @@ docker run --rm -v $(pwd)/emails:/data phishhawk analyze /data/suspicious.eml -o
 | Markdown | `-o markdown` | Written reports, case notes |
 | STIX 2.1 | `-o stix` | Threat intelligence sharing |
 | MISP | `-o misp` | MISP feed import |
+
+> **Note on optional features:** `.msg` parsing, Office macro analysis, PDF JavaScript
+> extraction, YARA scanning, and WHOIS enrichment require the optional dependencies
+> installed via `pip install -e ".[all]"`. Without them, PhishHawk degrades gracefully
+> (e.g., `.msg` raises an import hint, attachment forensics skip the optional checks).
+>
+> `--sandbox-urls` performs live redirect tracing and SSL certificate inspection.
+> WHOIS lookups are only available when `python-whois` is installed (`[all]`).
+>
+> `--detonate-attachments` submits attachments to a running [HATCHERY](https://github.com/aiagentmackenzie-lang/HATCHERY)
+> sandbox. If HATCHERY is not reachable, the report records the failed submission
+> with the endpoint that was tried.
+>
+> **Risk scoring:** the current model returns the arithmetic mean of the five
+> category scores. A single category at 100/100 therefore cannot push the overall
+> score above 100, and a very suspicious authentication result may be diluted by
+> low scores in URLs/headers. Treat the total as a conservative summary and review
+> the per-category breakdown for the real story.
 
 ## Configuration
 
