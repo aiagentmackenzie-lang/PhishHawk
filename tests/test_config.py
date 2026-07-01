@@ -55,7 +55,7 @@ def test_apply_env() -> None:
 
 def test_config_defaults() -> None:
     cfg = PhishHawkConfig.load(user_path=Path("/nonexistent"))
-    assert cfg.hatchery_endpoint == "http://localhost:8000/api"
+    assert cfg.hatchery_endpoint == "http://localhost:3002/api"
     assert cfg.dns_timeout == 10
     assert cfg.weight_authentication == 30
     assert cfg.color is True

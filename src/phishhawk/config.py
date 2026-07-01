@@ -35,7 +35,7 @@ except ModuleNotFoundError:
 import copy
 
 _DEFAULTS = {
-    "hatchery": {"endpoint": "http://localhost:8000/api", "timeout": 30},
+    "hatchery": {"endpoint": "http://localhost:3002/api", "timeout": 30},
     "dns": {"timeout": 10, "retries": 2},
     "scoring": {
         "weights": {
@@ -112,7 +112,7 @@ def _apply_env(config: dict) -> dict:
 class PhishHawkConfig:
     """Resolved configuration, accessible as attributes."""
 
-    hatchery_endpoint: str = "http://localhost:8000/api"
+    hatchery_endpoint: str = "http://localhost:3002/api"
     hatchery_timeout: int = 30
     dns_timeout: int = 10
     dns_retries: int = 2
@@ -150,7 +150,7 @@ class PhishHawkConfig:
         dk = config.get("dkim", {})
 
         return cls(
-            hatchery_endpoint=h.get("endpoint", "http://localhost:8000/api"),
+            hatchery_endpoint=h.get("endpoint", "http://localhost:3002/api"),
             hatchery_timeout=h.get("timeout", 30),
             dns_timeout=d.get("timeout", 10),
             dns_retries=d.get("retries", 2),

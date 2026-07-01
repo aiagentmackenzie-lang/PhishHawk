@@ -75,7 +75,7 @@ def get_report(task_id: str) -> dict[str, object]:
 
     try:
         resp = requests.get(
-            f"{endpoint}/report/{task_id}",
+            f"{endpoint}/tasks/{task_id}/report",
             headers=headers,
             timeout=15,
         )

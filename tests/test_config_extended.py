@@ -105,7 +105,7 @@ class TestPhishHawkConfig:
 
     def test_load_all_defaults(self) -> None:
         cfg = PhishHawkConfig.load(user_path=Path("/nonexistent"))
-        assert cfg.hatchery_endpoint == "http://localhost:8000/api"
+        assert cfg.hatchery_endpoint == "http://localhost:3002/api"
         assert cfg.hatchery_timeout == 30
         assert cfg.dns_timeout == 10
         assert cfg.dns_retries == 2
