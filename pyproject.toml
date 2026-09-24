@@ -36,6 +36,7 @@ dependencies = [
     "checkdmarc>=5.0.0",
     "tldextract>=5.0.0",
     "requests>=2.31.0",
+    "yara-python>=4.5",
 ]
 
 [project.optional-dependencies]
